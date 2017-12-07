@@ -12,6 +12,7 @@ import OrganizationState from '../../mixins/organizationState';
 import RoleSelect from './roleSelect';
 import TeamSelect from './teamSelect';
 import TextField from '../../components/forms/textField';
+import recreateRoute from '../../utils/recreateRoute';
 
 const InviteMember = React.createClass({
   mixins: [ApiMixin, OrganizationState],
@@ -69,8 +70,13 @@ const InviteMember = React.createClass({
   },
 
   redirectToMemberPage() {
-    let {slug} = this.getOrganization();
-    browserHistory.push(`/organizations/${slug}/members/`);
+    // Get path to parent route (`/organizations/${slug}/members/`)
+    let pathToParentRoute = recreateRoute('', {
+      params: this.props.params,
+      routes: this.props.routes,
+      stepBack: -1,
+    });
+    browserHistory.push(pathToParentRoute);
   },
 
   splitEmails(text) {
@@ -94,6 +100,7 @@ const InviteMember = React.createClass({
           role: selectedRole,
         },
         success: () => {
+          // TODO(billy): Use SettingsIndicator when these views only exist in Settings area
           AlertActions.addAlert({
             message: `Added ${email}`,
             type: 'success',
