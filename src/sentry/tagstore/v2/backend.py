@@ -93,14 +93,17 @@ class TagStorage(TagStorage):
             **kwargs
         )
 
-    def get_or_create_tag_value(self, project_id, environment_id, key, value, **kwargs):
-        tag_key, _ = self.get_or_create_tag_key(
-            project_id, environment_id, key, **kwargs)
+    def get_or_create_tag_value(self, project_id, environment_id,
+                                key, value, key_id=None, **kwargs):
+        if key_id is None:
+            tag_key, _ = self.get_or_create_tag_key(
+                project_id, environment_id, key, **kwargs)
+            key_id = tag_key.id
 
         return TagValue.objects.get_or_create(
             project_id=project_id,
             environment_id=environment_id,
-            _key_id=tag_key.id,
+            _key_id=key_id,
             value=value,
             **kwargs
         )

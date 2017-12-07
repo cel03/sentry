@@ -126,7 +126,8 @@ class LegacyTagStorage(TagStorage):
     def create_tag_value(self, project_id, environment_id, key, value, **kwargs):
         return TagValue.objects.create(project_id=project_id, key=key, value=value, **kwargs)
 
-    def get_or_create_tag_value(self, project_id, environment_id, key, value, **kwargs):
+    def get_or_create_tag_value(self, project_id, environment_id,
+                                key, value, key_id=None, **kwargs):
         return TagValue.objects.get_or_create(
             project_id=project_id, key=key, value=value, **kwargs)
 

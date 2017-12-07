@@ -218,7 +218,8 @@ class TagStorage(Service):
         """
         raise NotImplementedError
 
-    def get_or_create_tag_value(self, project_id, environment_id, key, value, **kwargs):
+    def get_or_create_tag_value(self, project_id, environment_id,
+                                key, value, key_id=None, **kwargs):
         """
         >>> get_or_create_tag_key(1, 2, "key1", "value1")
         """
