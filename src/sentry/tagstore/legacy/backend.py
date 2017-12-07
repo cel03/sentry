@@ -34,6 +34,10 @@ class LegacyTagStorage(TagStorage):
     """
 
     def setup(self):
+        from sentry.deletions import default_manager
+        from sentry.deletions.defaults import BulkModelDeletionTask
+        from sentry.deletions.base import ModelRelation, ModelDeletionTask
+
         self.setup_deletions(
             tagkey_model=TagKey,
             tagvalue_model=TagValue,
@@ -41,6 +45,25 @@ class LegacyTagStorage(TagStorage):
             grouptagvalue_model=GroupTagValue,
             eventtag_model=EventTag,
         )
+
+        class TagKeyDeletionTask(ModelDeletionTask):
+            def get_child_relations(self, instance):
+                # in bulk
+                model_list = (GroupTagValue, GroupTagKey, TagValue)
+                relations = [
+                    ModelRelation(m, {
+                        'project_id': instance.project_id,
+                        'key': instance.key,
+                    }) for m in model_list
+                ]
+                return relations
+
+            def mark_deletion_in_progress(self, instance_list):
+                for instance in instance_list:
+                    if instance.status != TagKeyStatus.DELETION_IN_PROGRESS:
+                        instance.update(status=TagKeyStatus.DELETION_IN_PROGRESS)
+
+        default_manager.register(TagKey, BulkModelDeletionTask)
 
         self.setup_cleanup(
             tagvalue_model=TagValue,

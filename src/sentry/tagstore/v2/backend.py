@@ -36,6 +36,9 @@ class TagStorage(TagStorage):
     """
 
     def setup(self):
+        from sentry.deletions import default_manager
+        from sentry.deletions.defaults import BulkModelDeletionTask
+
         self.setup_deletions(
             tagkey_model=TagKey,
             tagvalue_model=TagValue,
@@ -43,6 +46,8 @@ class TagStorage(TagStorage):
             grouptagvalue_model=GroupTagValue,
             eventtag_model=EventTag,
         )
+
+        default_manager.register(TagKey, BulkModelDeletionTask)
 
         self.setup_cleanup(
             tagvalue_model=TagValue,
@@ -74,7 +79,7 @@ class TagStorage(TagStorage):
             project_id = filters['project_id']
             environment_id = filters['environment_id']
 
-            tagstore.incr_tag_key_values_seen(project_id, environment_id, filters['key_id'])
+            tagstore.incr_tag_key_values_seen(project_id, environment_id, filters['_key_id'])
 
         @buffer_incr_complete.connect(sender=GroupTagValue, weak=False)
         def record_group_tag_count(filters, created, extra, **kwargs):
@@ -88,7 +93,7 @@ class TagStorage(TagStorage):
             environment_id = filters['environment_id']
 
             tagstore.incr_group_tag_key_values_seen(
-                project_id, group_id, environment_id, filters['key_id'])
+                project_id, group_id, environment_id, filters['_key_id'])
 
     def create_tag_key(self, project_id, environment_id, key, **kwargs):
         return TagKey.objects.create(
@@ -107,8 +112,13 @@ class TagStorage(TagStorage):
         )
 
     def create_tag_value(self, project_id, environment_id, key, value, **kwargs):
+        tag_key_kwargs = kwargs.copy()
+        for k in ['times_seen', 'first_seen', 'last_seen']:
+            if k in tag_key_kwargs:
+                del tag_key_kwargs[k]
+
         tag_key, _ = self.get_or_create_tag_key(
-            project_id, environment_id, key, **kwargs)
+            project_id, environment_id, key, **tag_key_kwargs)
 
         return TagValue.objects.create(
             project_id=project_id,
@@ -134,8 +144,12 @@ class TagStorage(TagStorage):
         )
 
     def create_group_tag_key(self, project_id, group_id, environment_id, key, **kwargs):
+        tag_key_kwargs = kwargs.copy()
+        if 'values_seen' in tag_key_kwargs:
+            del tag_key_kwargs['values_seen']
+
         tag_key, _ = self.get_or_create_tag_key(
-            project_id, environment_id, key, **kwargs)
+            project_id, environment_id, key, **tag_key_kwargs)
 
         return GroupTagKey.objects.create(
             project_id=project_id,
@@ -157,12 +171,18 @@ class TagStorage(TagStorage):
             **kwargs
         )
 
-    def create_group_tag_value(self, project_id, group_id, environment_id, key, value, **kwargs):
+    def create_group_tag_value(self, project_id, group_id, environment_id,
+                               key, value, **kwargs):
+        other_kwargs = kwargs.copy()
+        for k in ['times_seen', 'first_seen', 'last_seen']:
+            if k in other_kwargs:
+                del other_kwargs[k]
+
         tag_key, _ = self.get_or_create_tag_key(
-            project_id, environment_id, key, **kwargs)
+            project_id, environment_id, key, **other_kwargs)
 
         tag_value, _ = self.get_or_create_tag_value(
-            project_id, environment_id, key, value, **kwargs)
+            project_id, environment_id, key, value, **other_kwargs)
 
         return GroupTagValue.objects.create(
             project_id=project_id,
@@ -371,7 +391,7 @@ class TagStorage(TagStorage):
                         filters={
                             'project_id': project_id,
                             'environment_id': env,
-                            'key_id': tagkey.id,
+                            '_key_id': tagkey.id,
                             'value': value,
                         },
                         extra=extra)
@@ -386,7 +406,7 @@ class TagStorage(TagStorage):
                         'project_id': project_id,
                         'group_id': group_id,
                         'environment_id': environment_id,
-                        'key_id': key,
+                        '_key_id': key,
                     })
 
     def incr_group_tag_value_times_seen(self, project_id, group_id, environment_id,
@@ -403,8 +423,8 @@ class TagStorage(TagStorage):
                             'project_id': project_id,
                             'group_id': group_id,
                             'environment_id': env,
-                            'key_id': tagkey.id,
-                            'value_id': tagvalue.id,
+                            '_key_id': tagkey.id,
+                            '_value_id': tagvalue.id,
                         },
                         extra=extra)
 
@@ -657,14 +677,14 @@ class TagStorage(TagStorage):
                     project_id=instance.project_id,
                     group_id=instance.group_id,
                     environment_id=instance.environment_id,
-                    key=instance.key,
+                    _key_id=instance._key_id,
                 ).count(),
             )
 
     def get_tag_value_qs(self, project_id, environment_id, key, query=None):
         queryset = TagValue.objects.filter(
             project_id=project_id,
-            key=key,
+            _key__key=key,
             **self._get_environment_filter(environment_id)
         )
 
@@ -677,7 +697,7 @@ class TagStorage(TagStorage):
         return GroupTagValue.objects.filter(
             project_id=project_id,
             group_id=group_id,
-            key=key,
+            _key__key=key,
             **self._get_environment_filter(environment_id)
         )
 

@@ -52,11 +52,11 @@ class GroupTagKey(Model):
             with transaction.atomic(using=router.db_for_write(GroupTagKey)):
                 GroupTagKey.objects.filter(
                     group_id=new_group.id,
-                    key_id=self.key_id,
+                    _key_id=self._key_id,
                 ).update(
                     values_seen=GroupTagValue.objects.filter(
                         group_id=new_group.id,
-                        key_id=self.key_id,
+                        _key_id=self._key_id,
                     ).count()
                 )
         except DataError:

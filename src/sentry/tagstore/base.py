@@ -90,24 +90,6 @@ class TagStorage(Service):
         from sentry.deletions.base import ModelRelation, ModelDeletionTask
         from sentry.models import Group, Project, Event
 
-        class TagKeyDeletionTask(ModelDeletionTask):
-            def get_child_relations(self, instance):
-                # in bulk
-                model_list = (grouptagvalue_model, grouptagkey_model, tagvalue_model)
-                relations = [
-                    ModelRelation(m, {
-                        'project_id': instance.project_id,
-                        'key': instance.key,
-                    }) for m in model_list
-                ]
-                return relations
-
-            def mark_deletion_in_progress(self, instance_list):
-                for instance in instance_list:
-                    if instance.status != TagKeyStatus.DELETION_IN_PROGRESS:
-                        instance.update(status=TagKeyStatus.DELETION_IN_PROGRESS)
-
-        default_manager.register(tagkey_model, TagKeyDeletionTask)
         default_manager.register(tagvalue_model, BulkModelDeletionTask)
         default_manager.register(grouptagkey_model, BulkModelDeletionTask)
         default_manager.register(grouptagvalue_model, BulkModelDeletionTask)
@@ -237,7 +219,8 @@ class TagStorage(Service):
         """
         raise NotImplementedError
 
-    def create_group_tag_value(self, project_id, group_id, environment_id, key, value, **kwargs):
+    def create_group_tag_value(self, project_id, group_id, environment_id,
+                               key, value, **kwargs):
         """
         >>> create_group_tag_value(1, 2, 3, "key1", "value1")
         """

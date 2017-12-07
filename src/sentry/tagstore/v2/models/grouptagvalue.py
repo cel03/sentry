@@ -65,8 +65,8 @@ class GroupTagValue(Model):
             with transaction.atomic(using=router.db_for_write(GroupTagValue)):
                 new_obj = GroupTagValue.objects.get(
                     group_id=new_group.id,
-                    key_id=self.key_id,
-                    value_id=self.value_id,
+                    _key_id=self._key_id,
+                    _value_id=self._value_id,
                 )
                 new_obj.update(
                     first_seen=min(new_obj.first_seen, self.first_seen),
