@@ -31,7 +31,9 @@ const Name = styled.div`
   font-weight: 600;
   font-size: 15px;
 `;
-const Note = styled.div`font-size: 13px;`;
+const Note = styled.div`
+  font-size: 13px;
+`;
 
 const avatarStyle = {
   width: 36,
@@ -47,6 +49,15 @@ const Row = styled.div`
   &:last-child {
     border: 0;
   }
+`;
+
+const EmptyMessage = styled.div`
+  display: flex;
+  justify-content: center;
+  padding: 18px;
+  font-size: 1.5em;
+  opacity: 0.4;
+  font-weight: bold;
 `;
 
 class AuditLogList extends React.Component {
@@ -105,7 +116,9 @@ class AuditLogList extends React.Component {
           </PanelHeader>
 
           <PanelBody>
-            {!hasEntries && <div>{t('No results found.')}</div>}
+            {!hasEntries && (
+              <EmptyMessage>{t('No audit entries available')}</EmptyMessage>
+            )}
 
             {hasEntries &&
               entries.map(entry => {
