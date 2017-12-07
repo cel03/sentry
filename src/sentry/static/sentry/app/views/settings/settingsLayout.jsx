@@ -5,14 +5,12 @@ import React from 'react';
 import styled from 'react-emotion';
 
 import IconChevronLeft from '../../icons/icon-chevron-left';
-import SentryTypes from '../../proptypes';
 import SettingsActivity from './components/settingsActivity';
 import SettingsBreadcrumb from './components/settingsBreadcrumb';
 import SettingsHeader from './components/settingsHeader';
 import SettingsSearch from './components/settingsSearch';
 import replaceRouterParams from '../../utils/replaceRouterParams';
 import withLatestContext from '../../utils/withLatestContext';
-import withOrganizations from '../../utils/withOrganizations';
 
 let StyledWarning = styled.div`
   margin-bottom: 30px;
@@ -62,19 +60,14 @@ const BackIcon = styled.span`
 class BackButtonComponent extends React.Component {
   static propTypes = {
     organization: PropTypes.string,
-    organizations: PropTypes.arrayOf(SentryTypes.Organization),
     project: PropTypes.string,
   };
 
   render() {
-    let {params, organization, organizations, project} = this.props;
+    let {params, organization, project} = this.props;
 
     let projectId = params.projectId || project;
-    let orgId =
-      params.orgId ||
-      organization ||
-      // give up lets just pick an org
-      (organizations && organizations.length && organizations[0]);
+    let orgId = params.orgId || (organization && organization.slug);
     let url = projectId ? '/:orgId/:projectId/' : '/:orgId/';
 
     return (
@@ -92,7 +85,7 @@ class BackButtonComponent extends React.Component {
   }
 }
 
-const BackButton = withOrganizations(withLatestContext(BackButtonComponent));
+const BackButton = withLatestContext(BackButtonComponent);
 
 const Content = styled(Box)`
   flex: 1;

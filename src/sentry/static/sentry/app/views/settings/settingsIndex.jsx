@@ -12,11 +12,13 @@ import IconStack from '../../icons/icon-stack';
 import IconSupport from '../../icons/icon-support';
 import IconUser from '../../icons/icon-user';
 import Link from '../../components/link';
+import LoadingIndicator from '../../components/loadingIndicator';
 import Panel from './components/panel';
 import PanelBody from './components/panelBody';
 import PanelHeader from './components/panelHeader';
 import SentryTypes from '../../proptypes';
 import SettingsLayout from './settingsLayout';
+import withLatestContext from '../../utils/withLatestContext';
 
 const LINKS = {
   DOCUMENTATION: 'https://docs.sentry.io/',
@@ -86,11 +88,12 @@ const ExternalHomeLink = styled(ExternalLink)`
 `;
 
 class SettingsIndex extends React.Component {
-  static contextTypes: {
+  static propTypes = {
     organization: SentryTypes.Organization,
   };
 
   render() {
+    let {organization} = this.props;
     let user = ConfigStore.get('user');
     let isOnPremise = ConfigStore.get('isOnPremise');
     let isSuperuser = user.isSuperuser;
@@ -99,18 +102,21 @@ class SettingsIndex extends React.Component {
     let supportText = isOnPremise ? t('Community Forums') : t('Contact Support');
     let SupportLinkComponent = isOnPremise ? ExternalHomeLink : HomeLink;
 
+    let organizationSettingsUrl =
+      (organization && `/settings/organization/${organization.slug}/`) || '';
+
     return (
       <SettingsLayout {...this.props}>
         <Flex mx={-2} wrap>
           <Box w={1 / 3} px={2}>
             <Panel>
               <HomePanelHeader>
-                <Link href="/account/settings/">
+                <HomeLink href="/account/settings/">
                   <HomeIcon color="blue">
                     <IconUser size={44} />
                   </HomeIcon>
-                </Link>
-                <Link href="/account/settings/">{t('My Account')}</Link>
+                  {t('My Account')}
+                </HomeLink>
               </HomePanelHeader>
 
               <HomePanelBody>
@@ -139,11 +145,14 @@ class SettingsIndex extends React.Component {
           <Box w={1 / 3} px={2}>
             {/* if admin */}
             <Panel>
+              {!organization && <LoadingIndicator overlay />}
               <HomePanelHeader>
-                <HomeIcon color="green">
-                  <IconStack size={44} />
-                </HomeIcon>
-                Organization Name
+                <HomeLink to={organizationSettingsUrl}>
+                  <HomeIcon color="green">
+                    <IconStack size={44} />
+                  </HomeIcon>
+                  {organization ? organization.name : t('Organization')}
+                </HomeLink>
               </HomePanelHeader>
               <HomePanelBody>
                 <h3>{t('Quick links')}:</h3>
@@ -289,4 +298,4 @@ class SettingsIndex extends React.Component {
     );
   }
 }
-export default SettingsIndex;
+export default withLatestContext(SettingsIndex);
