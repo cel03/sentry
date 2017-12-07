@@ -19,6 +19,7 @@ from operator import or_
 from six.moves import reduce
 
 from sentry import buffer
+from sentry.signals import buffer_incr_complete
 from sentry.tagstore import TagKeyStatus
 from sentry.tagstore.base import TagStorage
 from sentry.utils import db
@@ -63,7 +64,31 @@ class TagStorage(TagStorage):
             grouptagvalue_model=GroupTagValue,
         )
 
-        # TODO(brett): v2-specific receivers for keeping environment aggregates up to date
+        @buffer_incr_complete.connect(sender=TagValue, weak=False)
+        def record_project_tag_count(filters, created, **kwargs):
+            from sentry import tagstore
+
+            if not created:
+                return
+
+            project_id = filters['project_id']
+            environment_id = filters['environment_id']
+
+            tagstore.incr_tag_key_values_seen(project_id, environment_id, filters['key_id'])
+
+        @buffer_incr_complete.connect(sender=GroupTagValue, weak=False)
+        def record_group_tag_count(filters, created, extra, **kwargs):
+            from sentry import tagstore
+
+            if not created:
+                return
+
+            project_id = extra['project_id']
+            group_id = filters['group_id']
+            environment_id = filters['environment_id']
+
+            tagstore.incr_group_tag_key_values_seen(
+                project_id, group_id, environment_id, filters['key_id'])
 
     def create_tag_key(self, project_id, environment_id, key, **kwargs):
         return TagKey.objects.create(
@@ -323,31 +348,36 @@ class TagStorage(TagStorage):
         ).delete()
 
     def incr_tag_key_values_seen(self, project_id, environment_id, key, count=1):
+        # key is passed `key_id` from `buffer_incr_complete.connect(sender=TagValue)`
         buffer.incr(TagKey,
                     columns={
                         'values_seen': count,
                     },
                     filters={
+                        'id': key,
                         'project_id': project_id,
                         'environment_id': environment_id,
-                        'key': key,
                     })
 
     def incr_tag_value_times_seen(self, project_id, environment_id,
                                   key, value, extra=None, count=1):
-        buffer.incr(TagValue,
-                    columns={
-                        'times_seen': count,
-                    },
-                    filters={
-                        'project_id': project_id,
-                        'environment_id': environment_id,
-                        'key': key,
-                        'value': value,
-                    },
-                    extra=extra)
+        for env in [environment_id, None]:
+            tagkey, _ = self.get_or_create_tag_key(project_id, env, key)
+
+            buffer.incr(TagValue,
+                        columns={
+                            'times_seen': count,
+                        },
+                        filters={
+                            'project_id': project_id,
+                            'environment_id': env,
+                            'key_id': tagkey.id,
+                            'value': value,
+                        },
+                        extra=extra)
 
     def incr_group_tag_key_values_seen(self, project_id, group_id, environment_id, key, count=1):
+        # key is passed `key_id` from `buffer_incr_complete.connect(sender=GroupTagValue)`
         buffer.incr(GroupTagKey,
                     columns={
                         'values_seen': count,
@@ -356,23 +386,27 @@ class TagStorage(TagStorage):
                         'project_id': project_id,
                         'group_id': group_id,
                         'environment_id': environment_id,
-                        'key': key,
+                        'key_id': key,
                     })
 
     def incr_group_tag_value_times_seen(self, project_id, group_id, environment_id,
                                         key, value, extra=None, count=1):
-        buffer.incr(GroupTagValue,
-                    columns={
-                        'times_seen': count,
-                    },
-                    filters={
-                        'project_id': project_id,
-                        'group_id': group_id,
-                        'environment_id': environment_id,
-                        'key': key,
-                        'value': value,
-                    },
-                    extra=extra)
+        for env in [environment_id, None]:
+            tagkey, _ = self.get_or_create_tag_key(project_id, env, key)
+            tagvalue, _ = self.get_or_create_tag_value(project_id, env, key, value)
+
+            buffer.incr(GroupTagValue,
+                        columns={
+                            'times_seen': count,
+                        },
+                        filters={
+                            'project_id': project_id,
+                            'group_id': group_id,
+                            'environment_id': env,
+                            'key_id': tagkey.id,
+                            'value_id': tagvalue.id,
+                        },
+                        extra=extra)
 
     def get_group_event_ids(self, project_id, group_id, environment_id, tags):
         tagkeys = dict(
