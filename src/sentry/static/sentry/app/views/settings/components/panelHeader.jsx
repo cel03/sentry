@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import React from 'react';
 import styled from 'react-emotion';
 
@@ -29,7 +30,7 @@ class PanelHeader extends React.Component {
 }
 
 PanelHeader.propTypes = {
-  disablePadding: React.PropTypes.bool,
+  disablePadding: PropTypes.bool,
 };
 
 export default PanelHeader;
