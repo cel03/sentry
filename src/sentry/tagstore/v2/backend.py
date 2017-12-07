@@ -412,8 +412,8 @@ class TagStorage(TagStorage):
             EventTag.objects.filter(
                 project_id=project_id,
                 group_id=group_id,
-                _key_id=k,
-                _value_id=v,
+                key_id=k,
+                value_id=v,
                 **self._get_environment_filter(environment_id)
             ).values_list('event_id', flat=True)[:1000]
         )
@@ -426,8 +426,8 @@ class TagStorage(TagStorage):
                     project_id=project_id,
                     group_id=group_id,
                     event_id__in=matches,
-                    _key_id=k,
-                    _value_id=v,
+                    key_id=k,
+                    value_id=v,
                     **self._get_environment_filter(environment_id)
                 ).values_list('event_id', flat=True)[:1000]
             )
