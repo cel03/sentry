@@ -35,7 +35,6 @@ class LegacyTagStorage(TagStorage):
 
     def setup(self):
         from sentry.deletions import default_manager
-        from sentry.deletions.defaults import BulkModelDeletionTask
         from sentry.deletions.base import ModelRelation, ModelDeletionTask
 
         self.setup_deletions(
@@ -63,7 +62,7 @@ class LegacyTagStorage(TagStorage):
                     if instance.status != TagKeyStatus.DELETION_IN_PROGRESS:
                         instance.update(status=TagKeyStatus.DELETION_IN_PROGRESS)
 
-        default_manager.register(TagKey, BulkModelDeletionTask)
+        default_manager.register(TagKey, TagKeyDeletionTask)
 
         self.setup_cleanup(
             tagvalue_model=TagValue,
