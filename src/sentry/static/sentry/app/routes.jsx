@@ -159,7 +159,12 @@ const orgSettingsRoutes = [
 
   <Route key="members" path="members/" name="Members">
     <IndexRoute component={errorHandler(OrganizationMembersView)} />
-    <Route path="new/" component={errorHandler(InviteMember)} />,
+    <Route path="new/" name="Invite" component={errorHandler(InviteMember)} />,
+    <Route
+      path=":memberId/"
+      name="Details"
+      component={errorHandler(OrganizationMemberDetail)}
+    />,
   </Route>,
 
   <Route
@@ -174,12 +179,6 @@ const orgSettingsRoutes = [
     path="repos/"
     name="Repositories"
     component={errorHandler(OrganizationRepositoriesView)}
-  />,
-  <Route key="members/new/" path="members/new/" component={errorHandler(InviteMember)} />,
-  <Route
-    key="members-detail"
-    path="members/:memberId/"
-    component={errorHandler(OrganizationMemberDetail)}
   />,
 
   <Route
