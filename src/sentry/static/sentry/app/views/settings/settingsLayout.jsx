@@ -11,6 +11,7 @@ import SettingsHeader from './components/settingsHeader';
 import SettingsSearch from './components/settingsSearch';
 import replaceRouterParams from '../../utils/replaceRouterParams';
 import withLatestContext from '../../utils/withLatestContext';
+import SentryTypes from '../../proptypes';
 
 let StyledWarning = styled.div`
   margin-bottom: 30px;
@@ -59,14 +60,14 @@ const BackIcon = styled.span`
 
 class BackButtonComponent extends React.Component {
   static propTypes = {
-    organization: PropTypes.string,
-    project: PropTypes.string,
+    organization: SentryTypes.Organization,
+    project: SentryTypes.Project,
   };
 
   render() {
     let {params, organization, project} = this.props;
 
-    let projectId = params.projectId || project;
+    let projectId = params.projectId || (project && project.slug);
     let orgId = params.orgId || (organization && organization.slug);
     let url = projectId ? '/:orgId/:projectId/' : '/:orgId/';
 
