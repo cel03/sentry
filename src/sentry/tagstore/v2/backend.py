@@ -10,6 +10,7 @@ from __future__ import absolute_import
 
 import six
 
+import logging
 from collections import defaultdict
 from datetime import timedelta
 from django.db import connections, router, IntegrityError, transaction
@@ -27,6 +28,9 @@ from sentry.utils import db
 from .models import EventTag, GroupTagKey, GroupTagValue, TagKey, TagValue
 
 
+logger = logging.getLogger('sentry.tagstore.v2')
+
+
 class TagStorage(TagStorage):
     """\
     The v2 tagstore backend stores and respects ``environment_id``.
@@ -38,6 +42,8 @@ class TagStorage(TagStorage):
     def setup(self):
         from sentry.deletions import default_manager
         from sentry.deletions.defaults import BulkModelDeletionTask
+        from sentry.deletions.base import ModelRelation
+        from sentry.models import Project
 
         self.setup_deletions(
             tagkey_model=TagKey,
@@ -48,6 +54,9 @@ class TagStorage(TagStorage):
         )
 
         default_manager.register(TagKey, BulkModelDeletionTask)
+        default_manager.add_dependencies(Project, [
+            lambda instance: ModelRelation(TagKey, {'project_id': instance.id}),
+        ])
 
         self.setup_cleanup(
             tagvalue_model=TagValue,
@@ -211,6 +220,8 @@ class TagStorage(TagStorage):
         )
 
     def create_event_tags(self, project_id, group_id, environment_id, event_id, tags):
+        assert environment_id is not None
+
         try:
             # don't let a duplicate break the outer transaction
             with transaction.atomic():
@@ -229,7 +240,17 @@ class TagStorage(TagStorage):
                     for key_id, value_id in tags
                 ])
         except IntegrityError:
-            pass
+            logger.error(
+                'tagstore.create_event_tags.integrity_error',
+                extra={
+                    'project_id': project_id,
+                    'environment_id': environment_id,
+                    'group_id': group_id,
+                    'event_id': event_id,
+                    'key_id': key_id,
+                    'value_id': value_id,
+                }
+            )
 
     def get_tag_key(self, project_id, environment_id, key, status=TagKeyStatus.VISIBLE):
         from sentry.tagstore.exceptions import TagKeyNotFound
@@ -429,24 +450,40 @@ class TagStorage(TagStorage):
                         extra=extra)
 
     def get_group_event_ids(self, project_id, group_id, environment_id, tags):
-        tagkeys = dict(
-            TagKey.objects.filter(
-                project_id=project_id,
-                key__in=tags.keys(),
-                status=TagKeyStatus.VISIBLE,
-                **self._get_environment_filter(environment_id)
-            ).values_list('key', 'id')
-        )
+        # NOTE: `environment_id=None` needs to be filtered differently in this method.
+        # EventTag never has NULL `environment_id` fields (individual Events always have an environment),
+        # and so `environment_id=None` needs to query EventTag for *all* environments (except, ironically
+        # the aggregate environment, which is NULL).
 
-        tagvalues = {
-            (t[1], t[2]): t[0]
-            for t in TagValue.objects.filter(
-                reduce(or_, (Q(_key__key=k, value=v)
-                             for k, v in six.iteritems(tags))),
-                project_id=project_id,
-                **self._get_environment_filter(environment_id)
-            ).values_list('id', '_key__key', 'value')
-        }
+        if environment_id is None:
+            # filter for all 'real' environments
+            env_filter = {'environment_id__isnull': False}
+        else:
+            env_filter = {'environment_id': environment_id}
+
+        tagkey_qs = TagKey.objects.filter(
+            project_id=project_id,
+            key__in=tags.keys(),
+            status=TagKeyStatus.VISIBLE,
+            **env_filter
+        ).values_list('key', 'id')
+
+        tagkeys = defaultdict(list)
+        for key, key_id in tagkey_qs:
+            tagkeys[key].append(key_id)
+        tagkeys = dict(tagkeys)
+
+        tagvalue_qs = TagValue.objects.filter(
+            reduce(or_, (Q(_key__key=k, value=v)
+                         for k, v in six.iteritems(tags))),
+            project_id=project_id,
+            **env_filter
+        ).values_list('id', '_key__key', 'value')
+
+        tagvalues = defaultdict(list)
+        for value_id, key, value in tagvalue_qs:
+            tagvalues[(key, value)].append(value_id)
+        tagvalues = dict(tagvalues)
 
         try:
             tag_lookups = [(tagkeys[k], tagvalues[(k, v)])
@@ -466,9 +503,9 @@ class TagStorage(TagStorage):
             EventTag.objects.filter(
                 project_id=project_id,
                 group_id=group_id,
-                key_id=k,
-                value_id=v,
-                **self._get_environment_filter(environment_id)
+                key_id__in=k,
+                value_id__in=v,
+                **env_filter
             ).values_list('event_id', flat=True)[:1000]
         )
 
@@ -480,9 +517,9 @@ class TagStorage(TagStorage):
                     project_id=project_id,
                     group_id=group_id,
                     event_id__in=matches,
-                    key_id=k,
-                    value_id=v,
-                    **self._get_environment_filter(environment_id)
+                    key_id__in=k,
+                    value_id__in=v,
+                    **env_filter
                 ).values_list('event_id', flat=True)[:1000]
             )
             if not matches:

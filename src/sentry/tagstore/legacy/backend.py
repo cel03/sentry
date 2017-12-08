@@ -36,6 +36,7 @@ class LegacyTagStorage(TagStorage):
     def setup(self):
         from sentry.deletions import default_manager
         from sentry.deletions.base import ModelRelation, ModelDeletionTask
+        from sentry.models import Project
 
         self.setup_deletions(
             tagkey_model=TagKey,
@@ -63,6 +64,12 @@ class LegacyTagStorage(TagStorage):
                         instance.update(status=TagKeyStatus.DELETION_IN_PROGRESS)
 
         default_manager.register(TagKey, TagKeyDeletionTask)
+        default_manager.add_dependencies(Project, [
+            lambda instance: ModelRelation(TagKey, {'project_id': instance.id}),
+            lambda instance: ModelRelation(TagValue, {'project_id': instance.id}),
+            lambda instance: ModelRelation(GroupTagKey, {'project_id': instance.id}),
+            lambda instance: ModelRelation(GroupTagValue, {'project_id': instance.id}),
+        ])
 
         self.setup_cleanup(
             tagvalue_model=TagValue,

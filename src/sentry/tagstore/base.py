@@ -88,7 +88,7 @@ class TagStorage(Service):
         from sentry.deletions import default_manager
         from sentry.deletions.defaults import BulkModelDeletionTask
         from sentry.deletions.base import ModelRelation, ModelDeletionTask
-        from sentry.models import Group, Project, Event
+        from sentry.models import Group, Event
 
         default_manager.register(tagvalue_model, BulkModelDeletionTask)
         default_manager.register(grouptagkey_model, BulkModelDeletionTask)
@@ -99,12 +99,6 @@ class TagStorage(Service):
             lambda instance: ModelRelation(eventtag_model, {'group_id': instance.id}),
             lambda instance: ModelRelation(grouptagkey_model, {'group_id': instance.id}),
             lambda instance: ModelRelation(grouptagvalue_model, {'group_id': instance.id}),
-        ])
-        default_manager.add_dependencies(Project, [
-            lambda instance: ModelRelation(tagkey_model, {'project_id': instance.id}),
-            lambda instance: ModelRelation(tagvalue_model, {'project_id': instance.id}),
-            lambda instance: ModelRelation(grouptagkey_model, {'project_id': instance.id}),
-            lambda instance: ModelRelation(grouptagvalue_model, {'project_id': instance.id}),
         ])
         default_manager.add_bulk_dependencies(Event, [
             lambda instance_list: ModelRelation(eventtag_model,

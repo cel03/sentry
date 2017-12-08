@@ -73,22 +73,24 @@ class DjangoSearchBackendTest(TestCase):
             }
         )
 
-        for key, value in self.event1.data['tags']:
-            tagstore.create_group_tag_value(
-                project_id=self.group1.project_id,
-                group_id=self.group1.id,
-                environment_id=self.env1.id,
-                key=key,
-                value=value,
-            )
-        for key, value in self.event2.data['tags']:
-            tagstore.create_group_tag_value(
-                project_id=self.group2.project_id,
-                group_id=self.group2.id,
-                environment_id=self.env2.id,
-                key=key,
-                value=value,
-            )
+        for env_id in [self.env1.id, None]:
+            for key, value in self.event1.data['tags']:
+                tagstore.create_group_tag_value(
+                    project_id=self.group1.project_id,
+                    group_id=self.group1.id,
+                    environment_id=env_id,
+                    key=key,
+                    value=value,
+                )
+        for env_id in [self.env2.id, None]:
+            for key, value in self.event2.data['tags']:
+                tagstore.create_group_tag_value(
+                    project_id=self.group2.project_id,
+                    group_id=self.group2.id,
+                    environment_id=env_id,
+                    key=key,
+                    value=value,
+                )
 
         GroupBookmark.objects.create(
             user=self.user,
@@ -151,7 +153,10 @@ class DjangoSearchBackendTest(TestCase):
         assert results[0] == self.group2
 
     def test_tags(self):
-        results = self.backend.query(self.project1, tags={'env': 'staging'})
+        results = self.backend.query(
+            self.project1,
+            tags={
+                'env': 'staging'})
         assert len(results) == 1
         assert results[0] == self.group2
 
