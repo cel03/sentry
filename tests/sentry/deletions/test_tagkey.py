@@ -48,7 +48,7 @@ class DeleteTagKeyTest(TestCase):
         tv2 = tagstore.create_tag_value(
             key=key,
             value=value,
-            project_id=project.id,
+            project_id=project2.id,
             environment_id=env2.id,
         )
         tagstore.create_group_tag_key(
@@ -61,7 +61,7 @@ class DeleteTagKeyTest(TestCase):
         )
         tagstore.create_event_tags(
             group_id=group2.id,
-            project_id=project.id,
+            project_id=project2.id,
             environment_id=env2.id,
             event_id=1,
             tags=[

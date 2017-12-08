@@ -73,24 +73,22 @@ class DjangoSearchBackendTest(TestCase):
             }
         )
 
-        for env_id in [self.env1.id, None]:
-            for key, value in self.event1.data['tags']:
-                tagstore.create_group_tag_value(
-                    project_id=self.group1.project_id,
-                    group_id=self.group1.id,
-                    environment_id=env_id,
-                    key=key,
-                    value=value,
-                )
-        for env_id in [self.env2.id, None]:
-            for key, value in self.event2.data['tags']:
-                tagstore.create_group_tag_value(
-                    project_id=self.group2.project_id,
-                    group_id=self.group2.id,
-                    environment_id=env_id,
-                    key=key,
-                    value=value,
-                )
+        for key, value in self.event1.data['tags']:
+            tagstore.create_group_tag_value(
+                project_id=self.group1.project_id,
+                group_id=self.group1.id,
+                environment_id=None,
+                key=key,
+                value=value,
+            )
+        for key, value in self.event2.data['tags']:
+            tagstore.create_group_tag_value(
+                project_id=self.group2.project_id,
+                group_id=self.group2.id,
+                environment_id=None,
+                key=key,
+                value=value,
+            )
 
         GroupBookmark.objects.create(
             user=self.user,
