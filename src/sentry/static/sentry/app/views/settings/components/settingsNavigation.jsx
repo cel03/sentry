@@ -13,17 +13,19 @@ class SettingsNavigation extends React.Component {
 
   static defaultProps = {
     hooks: [],
+    hookConfigs: [],
   };
 
   render() {
-    let {navigationObjects, hooks, ...otherProps} = this.props;
-    let navWithHooks = navigationObjects.concat(hooks);
+    let {navigationObjects, hooks, hookConfigs, ...otherProps} = this.props;
+    let navWithHooks = navigationObjects.concat(hookConfigs);
 
     return (
       <Box>
         {navWithHooks.map(config => (
           <SettingsNavigationGroup key={config.name} {...otherProps} {...config} />
         ))}
+        {hooks.map((Hook, i) => Hook)}
       </Box>
     );
   }
